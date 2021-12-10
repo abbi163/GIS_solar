@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@2.5.5/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidWNmLW1hcGJveCIsImEiOiJja3RpeXpzd2oxNzNtMm9wYXQ4enY1bGJ5In0.PEZqaPuuhzPDN9RneRscqQ';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: false,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"5dqm9gwz","label":"2. avg_practical_potential.csv","color":[0,92,255],"allData":[[12.5,-69.9667,4.9646],[33,65,5.0159],[-12.5,18.5,4.6586],[41,20,4.0426],[42.5,1.6,4.199],[24,54,5.0043],[-34,-64,4.5992],[40,45,4.1063],[-14.3333,-170,3.9826],[17.05,-61.8,4.7696],[-27,133,4.7071],[47.3333,13.3333,3.2571],[40.5,47.5,3.8177],[-3.5,30,4.1723],[50.8333,4,2.9164],[9.5,2.25,4.1978],[13,-2,4.5701],[24,90,3.8806],[43,25,3.7028],[26,50.55,4.8686],[24.25,-76,4.5481],[44,18,3.5697],[53,28,2.9485],[17.25,-88.75,4.1768],[32.3333,-64.75,4.1838],[-17,-65,4.9421],[-17,-65,4.9421],[-10,-55,4.4042],[13.1667,-59.5333,4.7151],[4.5,114.6667,3.9009],[4.5,114.6667,3.9009],[27.5,90.5,3.9158],[-22,24,5.1069],[7,21,4.4666],[60,-95,3.8155],[47,8,3.3639],[-30,-71,5.3647],[35,105,3.8825],[8,-5,3.9999],[8,-5,3.9999],[6,12,4.2771],[0,25,4.2556],[-1,15,3.7669],[4,-72,4.0492],[-12.1667,44.25,4.2856],[16,-24,4.6823],[10,-84,4.093],[21.5,-80,4.5409],[19.5,-80.5,4.6273],[35,33,4.6983],[49.75,15.5,3.0481],[51,9,2.9608],[11.5,43,4.7972],[15.4167,-61.3333,3.9702],[56,10,2.8434],[19,-70.6667,4.5698],[28,3,4.9167],[-2,-77.5,3.4015],[27,30,5.2467],[15,39,4.8948],[40,-4,4.4127],[59,26,2.8369],[8,38,4.6954],[-18,175,3.8151],[46,2,3.3861],[6.9167,158.25,3.888],[-1,11.75,3.6024],[54,-2,2.6127],[42,43.5,3.7084],[8,-2,4.0203],[11,-10,4.4374],[13.4667,-16.5667,4.569],[12,-15,4.4576],[2,10,3.6671],[39,22,4.143],[12.1167,-61.6667,4.4519],[15.5,-90.25,4.3855],[13.4667,144.7833,4.532],[5,-59,4.1959],[22.25,114.1667,3.2718],[15,-86.5,4.2629],[45.1667,15.5,3.6306],[19,-72.4167,4.6766],[47,20,3.4402],[-5,120,3.7674],[54.23,-4.55,2.7637],[20,77,4.322],[53,-8,2.5126],[32,53,4.9159],[33,44,4.6783],[31.5,34.75,5.0763],[42.8333,12.8333,3.9933],[18.25,-77.5,4.3858],[31,36,5.315],[36,138,3.4456],[48,68,3.685],[1,38,4.5042],[41,75,4.1149],[13,105,4.125],[1.4167,173,4.8231],[17.3333,-62.75,4.6456],[37,127.5,3.8163],[37,127.5,3.8163],[29.3375,47.6581,4.8155],[18,105,3.8709],[33.8333,35.8333,4.8315],[6.5,-9.5,3.8833],[25,17,5.1243],[25,17,5.1243],[13.8833,-61.1333,4.5225],[47.1667,9.5333,3.2454],[7,81,4.2118],[-29.5,28.5,5.1349],[56,24,2.8704],[49.75,6.1667,2.9478],[57,25,2.8531],[22.1667,113.55,3.4041],[32,-5,5.0065],[47,29,3.4493],[-20,47,4.7579],[3.25,73,4.4418],[23,-102,4.9241],[9,168,4.2382],[41.8333,22,3.8814],[17,-4,4.6763],[35.8333,14.5833,4.5618],[22,98,4.1414],[22,98,4.1414],[42,19,3.8174],[46,105,4.7573],[15.2,145.75,4.6546],[-18.25,35,4.435],[20,-12,4.7491],[-20.2833,57.55,4.2148],[-13.5,34,4.6006],[2.5,112.5,3.7399],[-22,17,5.3791],[-21.5,165.5,3.9764],[16,8,4.837],[10,8,4.2977],[13,-85,4.1085],[52.5,5.75,2.8647],[62,10,2.7612],[28,84,3.996],[-0.5333,166.9167,4.651],[-41,174,3.6774],[21,57,5.1683],[30,70,4.7126],[9,-80,3.9655],[-10,-76,4.901],[13,122,3.9324],[7.5,134.5,4.005],[-6,147,3.6919],[52,20,2.9844],[18.25,-66.5,4.3964],[40,127,3.9158],[39.5,-8,4.3155],[-23,-58,4.2814],[32,35.25,4.9348],[-15,-140,4.3941],[25.5,51.25,4.9174],[46,25,3.5236],[60,100,3.3552],[60,100,3.3552],[-2,30,4.1021],[25,45,5.1588],[15,30,4.9432],[14,-14,4.5835],[1.3667,103.8,3.5513],[-8,159,3.6894],[8.5,-11.5,4.0862],[13.8333,-88.9167,4.8272],[43.7667,12.4167,3.7595],[10,49,4.7617],[44,21,3.5203],[8,30,4.4569],[1,7,3.4681],[4,-56,4.269],[48.6667,19.5,3.2655],[46,15,3.4345],[62,15,2.8373],[-26.5,31.5,4.3186],[-4.5833,55.6667,4.3476],[35,38,4.8542],[21.75,-71.5833,4.7221],[15,19,4.8374],[8,1.1667,4.1243],[15,100,4.0646],[39,71,4.3406],[40,60,4.3678],[-8.55,125.5167,4.3391],[-20,-175,4.0078],[11,-61,4.349],[34,9,4.7445],[39,35,4.3232],[-8,178,4.2668],[-6,35,4.5067],[1,32,4.4616],[49,32,3.2962],[-33,-56,4.3043],[38,-97,4.3584],[41,64,4.2688],[13.25,-61.2,4.2728],[13.25,-61.2,4.2728],[13.25,-61.2,4.2728],[8,-66,4.3545],[8,-66,4.3545],[18.5,-64.5,4.8547],[18.3333,-64.8333,4.7504],[16,106,3.5544],[16,106,3.5544],[-16,167,3.5305],[-13.5833,-172.3333,4.0529],[15,48,5.2137],[-29,24,5.0036],[-15,30,4.8281],[-20,30,4.8611]],"fields":[{"name":"Latitude (average)","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Longitude (average)","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Average practical potential \n(PVOUT Level 1, \nkWh/kWp/day), long-term","type":"real","format":"","analyzerType":"FLOAT"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"lkqxzuw","type":"point","config":{"dataId":"5dqm9gwz","label":"new layer","color":[30,150,190],"highlightColor":[252,242,26,255],"columns":{"lat":"Latitude (average)","lng":"Longitude (average)","altitude":null},"isVisible":true,"visConfig":{"radius":10,"fixedRadius":false,"opacity":0.8,"outline":true,"thickness":2,"strokeColor":null,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radiusRange":[0,32.9],"filled":true},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":{"name":"Average practical potential \n(PVOUT Level 1, \nkWh/kWp/day), long-term","type":"real"},"colorScale":"quantile","strokeColorField":{"name":"Average practical potential \n(PVOUT Level 1, \nkWh/kWp/day), long-term","type":"real"},"strokeColorScale":"quantile","sizeField":{"name":"Average practical potential \n(PVOUT Level 1, \nkWh/kWp/day), long-term","type":"real"},"sizeScale":"sqrt"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"5dqm9gwz":[{"name":"Latitude (average)","format":null},{"name":"Longitude (average)","format":null},{"name":"Average practical potential \n(PVOUT Level 1, \nkWh/kWp/day), long-term","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":0,"dragRotate":false,"latitude":1.5766075060146312,"longitude":-2.7944352209060965,"pitch":0,"zoom":1.9680229581259057,"isSplit":false},"mapStyle":{"styleType":"dark","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[9.665468314072013,17.18305478057247,31.1442867897876],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
